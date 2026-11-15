@@ -1,0 +1,27 @@
+{
+	admin off
+	auto_https off
+}
+
+# Reached only from cloudflared on this host (port bound to 127.0.0.1). cloudflared refuses any
+# request without a valid Access JWT for this app (originRequest.access.required), so the
+# Cf-Access-Authenticated-User-Email header here was set by Cloudflare, not by the client.
+:8081 {
+	route {
+		# Never let a client supply forward-auth headers of its own.
+		request_header -Remote-*
+		request_header -X-Forward-Auth-Secret
+
+		@no_identity not header Cf-Access-Authenticated-User-Email *
+		respond @no_identity "Cloudflare Access identity missing" 403
+
+		reverse_proxy nginx:80 {
+			header_up Remote-User {http.request.header.Cf-Access-Authenticated-User-Email}
+			header_up Remote-Email {http.request.header.Cf-Access-Authenticated-User-Email}
+			header_up X-Forward-Auth-Secret {$FORWARD_AUTH_SECRET}
+			# Restart X-Forwarded-For from the client IP Cloudflare saw. nginx appends Caddy after it,
+			# so TRUSTED_PROXY_COUNT=2 lands on the client.
+			header_up X-Forwarded-For {http.request.header.Cf-Connecting-Ip}
+		}
+	}
+}

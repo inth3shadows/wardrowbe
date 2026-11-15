@@ -1,0 +1,35 @@
+# closet.ericminish.com overlay on top of upstream docker-compose.prod.yml.
+#   docker compose -f docker-compose.prod.yml -f deploy/closet/compose.closet.yml up -d
+#
+# Request path: Cloudflare Access -> cloudflared (host; validates the Access JWT)
+#   -> caddy 127.0.0.1:8081 (maps the Access email to forward-auth headers)
+#   -> upstream nginx -> frontend/backend.
+# Decision: map CF Access headers in Caddy instead of running TinyAuth or Authelia. CF Access is
+# already the identity layer for every *.ericminish.com app, so this avoids a second login system.
+
+x-backend-image: &backend-image ghcr.io/anyesh/wardrowbe:backend-1.13.0
+
+services:
+  backend:
+    image: *backend-image
+  worker:
+    image: *backend-image
+  image-worker:
+    image: *backend-image
+  frontend:
+    image: ghcr.io/anyesh/wardrowbe:frontend-1.13.0
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    container_name: wardrobe_caddy
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8081:8081"
+    environment:
+      FORWARD_AUTH_SECRET: ${FORWARD_AUTH_SECRET:?Set FORWARD_AUTH_SECRET in .env}
+    volumes:
+      - ./deploy/closet/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - nginx
+    networks:
+      - wardrobe_net
