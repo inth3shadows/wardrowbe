@@ -1,0 +1,6 @@
+[Unit]
+Description=email Eric when the closet backup fails
+
+[Service]
+Type=oneshot
+ExecStart=/opt/closet/deploy/closet/backup-alert.sh

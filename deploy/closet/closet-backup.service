@@ -1,0 +1,10 @@
+[Unit]
+Description=closet nightly Postgres dump (picked up by the 21:45 PBS job)
+After=docker.service
+Requires=docker.service
+OnFailure=closet-backup-alert.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/closet/deploy/closet/backup.sh nightly
+TimeoutStartSec=900

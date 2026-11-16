@@ -1,0 +1,9 @@
+[Unit]
+Description=closet nightly Postgres dump, 30 min before the PBS window
+
+[Timer]
+OnCalendar=*-*-* 21:15:00 America/New_York
+Persistent=true
+
+[Install]
+WantedBy=timers.target

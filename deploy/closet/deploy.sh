@@ -39,4 +39,11 @@ BG_REMOVAL_MODEL=u2net
 LOG_LEVEL=INFO
 EOF
 
+# Pre-migration dump (upstream: back up before upgrading; an alembic downgrade loses data). Skipped only on
+# the very first deploy, when Postgres isn't running yet.
+ssh -o BatchMode=yes root@"$LXC_IP" "chmod 755 $DIR/deploy/closet/*.sh; if docker ps --format '{{.Names}}' | grep -qx wardrobe_postgres; then $DIR/deploy/closet/backup.sh premigrate; else echo 'postgres not running: no pre-migration dump (first deploy)'; fi"
+
+# Nightly dump timer (+ failure alert). Units are refreshed on every deploy.
+ssh -o BatchMode=yes root@"$LXC_IP" "install -m 644 $DIR/deploy/closet/closet-backup.service $DIR/deploy/closet/closet-backup.timer $DIR/deploy/closet/closet-backup-alert.service /etc/systemd/system/ && systemctl daemon-reload && systemctl enable --now closet-backup.timer >/dev/null && systemctl list-timers closet-backup.timer --no-pager | sed -n 2p"
+
 ssh -o BatchMode=yes root@"$LXC_IP" "cd $DIR && docker compose -f docker-compose.prod.yml -f deploy/closet/compose.closet.yml pull -q && docker compose -f docker-compose.prod.yml -f deploy/closet/compose.closet.yml up -d && docker compose -f docker-compose.prod.yml -f deploy/closet/compose.closet.yml exec -T backend alembic upgrade head && docker compose -f docker-compose.prod.yml -f deploy/closet/compose.closet.yml ps --format '{{.Name}}\t{{.Status}}'"
